@@ -13,8 +13,8 @@ import (
 	files "github.com/ipfs/go-ipfs-files"
 	u "github.com/ipfs/go-ipfs-util"
 	util "github.com/ipfs/go-ipfs-util"
-	"github.com/ipfs/go-ipfs/core/coreunix"
-	"github.com/ipfs/go-ipfs/pin"
+	coreunix "github.com/ipfs/go-ipfs/core/coreunix"
+	pin "github.com/ipfs/go-ipfs/pin"
 	mdag "github.com/ipfs/go-merkledag"
 	merkledag "github.com/ipfs/go-merkledag"
 	importer "github.com/ipfs/go-unixfs/importer"
@@ -78,11 +78,31 @@ func randNode() ipld.Node {
 func nodeFromFileAdder(srv *IpfsServices) ipld.Node {
 	data := make([]byte, 40)
 	u.NewTimeSeededRand().Read(data)
+	f := files.NewBytesFile(data)
 
 	fileAdder, err := coreunix.NewAdder(context.Background(),
 		srv.Pinner, blockstore.NewGCLocker(), srv.DAG)
-	f := files.NewBytesFile(data)
 	nd, err := fileAdder.AddAllAndPin(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return nd
+}
+
+// This method of adding folder seems to be wrong
+// and unreliable. On output, instead of directory node,
+// we have the node of the last added file, which is confusing
+func nodeFromDirectory(srv *IpfsServices) ipld.Node {
+
+	mapFiles := map[string]files.Node{
+		"one": files.NewBytesFile([]byte("testfileA")),
+		"two": files.NewBytesFile([]byte("testfileB")),
+	}
+	dir := files.NewMapDirectory(mapFiles)
+	fileAdder, err := coreunix.NewAdder(context.Background(),
+		srv.Pinner, blockstore.NewGCLocker(), srv.DAG)
+
+	nd, err := fileAdder.AddAllAndPin(dir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -92,7 +112,10 @@ func nodeFromFileAdder(srv *IpfsServices) ipld.Node {
 func main() {
 	srv := NewMemoryServices()
 	// nd := nodeFromBufferReader(srv.DAG)
-	nd := nodeFromFileAdder(srv)
+	// nd := nodeFromFileAdder(srv)
+	// nd := randNode()
+
+	nd := nodeFromDirectory(srv)
 
 	fmt.Println(" NODE=", nd.Cid().String())
 	fmt.Println("  DBG=", GetNodeDataString(srv.DAG, nd))
