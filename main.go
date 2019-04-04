@@ -36,15 +36,17 @@ func NodeFromDirectory(api coreiface.CoreAPI) ipld.Node {
 		"two": files.NewBytesFile([]byte("testfileB")),
 	}
 	dir := files.NewMapDirectory(mapFiles)
-	_ = dir.(files.Directory)
 
-	// nd, err := fileAdder.AddAllAndPin(dir)
-	k, err := api.Unixfs().Add(context.Background(), dir.(files.Directory), options.Unixfs.Wrap(false))
+	path, err := api.Unixfs().Add(context.Background(), dir.(files.Directory), options.Unixfs.Wrap(true))
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("k=", k.String())
-	return nil
+	// fmt.Println("path=", path.String())
+	nd, err := api.Object().Get(context.Background(), path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return nd
 }
 
 func main() {
